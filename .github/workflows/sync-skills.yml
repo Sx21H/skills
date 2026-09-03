@@ -6,8 +6,8 @@
 # component) — teams onboard by adding their own file there, not by
 # editing this workflow or any shared file.
 #
-# Requires a PAT (SKILLS_SYNC_PAT) with read access to all product
-# repos, stored as a repository secret.
+# Requires a PAT (SKILLS_SYNC_PAT) with read access to all product repos
+# and permission to create pull requests, stored as a repository secret.
 
 name: Sync Skills from Product Repos
 
@@ -1053,6 +1053,7 @@ jobs:
         if: steps.summary.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.SKILLS_SYNC_PAT }}
           commit-message: ${{ steps.summary.outputs.title }}
           branch: automated/sync-skills
           title: ${{ steps.summary.outputs.title }}
