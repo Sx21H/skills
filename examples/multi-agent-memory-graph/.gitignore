@@ -1,0 +1,5 @@
+# Local run artifacts
+vault/
+chroma_vault/
+__pycache__/
+*.pyc
