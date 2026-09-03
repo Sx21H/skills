@@ -11,8 +11,8 @@
 # fact. This check enforces that every commit in a human-authored
 # onboarding or catalog PR has a clear NVIDIA author chain.
 #
-# The automated/sync-skills branch is exempt — same reason as DCO:
-# it's the bot mirror, not a contributor.
+# Bot-managed branches and branches created by the repository's coding agents
+# are exempt — they are automation, not contributors.
 #
 # Reviewed external contributions are accepted via
 # .github/external-contributors.yml: a maintainer runs the contribution
@@ -47,14 +47,20 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
-          # Bot-managed sync branch is exempt — see header comment.
-          if [ "$HEAD_REF" = "automated/sync-skills" ]; then
-            echo "Author verification exempt for bot-managed branch '$HEAD_REF'."
-            exit 0
+          # Only exempt trusted automation branches in this repository. A fork
+          # must not be able to bypass author verification by choosing a prefix.
+          if [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ]; then
+            case "$HEAD_REF" in
+              automated/sync-skills|claude/*|copilot/*)
+                echo "Author verification exempt for automation branch '$HEAD_REF'."
+                exit 0
+                ;;
+            esac
           fi
 
           # Allowed email patterns:
