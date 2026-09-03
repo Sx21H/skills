@@ -106,7 +106,7 @@ jobs:
             author_email=$(git show --format='%ae' -s "$sha")
             committer_email=$(git show --format='%ce' -s "$sha")
             for email in "$author_email" "$committer_email"; do
-              if ! echo "$email" | grep -qE "$allowed"; then
+              if ! echo "$email" | grep -qiE "$allowed"; then
                 if is_reviewed_external "$email"; then
                   echo "Accepting reviewed external contributor email $email for PR #$PR_NUMBER (see .github/external-contributors.yml)."
                   continue
