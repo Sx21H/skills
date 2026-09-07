@@ -1,0 +1,4 @@
+# The test suite exercises parsing, graph merge/persistence and the ledger.
+# It deliberately avoids the LLM stack, so only these are needed.
+networkx>=3.2
+pyvis>=0.3.2

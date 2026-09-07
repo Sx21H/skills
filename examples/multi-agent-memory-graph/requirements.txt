@@ -1,0 +1,12 @@
+# Runtime dependencies for the memory-graph workflow.
+langgraph>=0.2
+langchain-core>=0.3
+langchain-community>=0.3
+langchain-ollama>=0.2
+langchain-chroma>=0.1
+fastembed>=0.3
+networkx>=3.2
+pyvis>=0.3.2
+
+# The workflow also needs a reachable Ollama server:
+#   ollama serve && ollama pull llama3.1:8b
