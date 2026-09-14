@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ollama Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg-elevated: #121821;
+      --bg-panel: #161d28;
+      --bg-soft: #1c2533;
+      --border: #2a3546;
+      --border-strong: #3a4a61;
+      --text: #e8eef7;
+      --muted: #93a1b5;
+      --faint: #6b7a90;
+      --accent: #4f8cff;
+      --accent-2: #7c5cff;
+      --ok: #2ecc71;
+      --warn: #f0b429;
+      --danger: #ff5d6c;
+      --chat-user: #1a2740;
+      --chat-assistant: #18202c;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+      --radius: 14px;
+      --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(79, 140, 255, 0.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 0%, rgba(124, 92, 255, 0.14), transparent 55%),
+        var(--bg);
+      line-height: 1.45;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+      color: inherit;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--bg-soft);
+      border-radius: 10px;
+      padding: 0.55rem 0.9rem;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+    button:hover:not(:disabled) {
+      border-color: var(--border-strong);
+      background: #243042;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+      color: white;
+      font-weight: 600;
+    }
+    button.primary:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+    button.danger {
+      background: rgba(255, 93, 108, 0.12);
+      border-color: rgba(255, 93, 108, 0.35);
+      color: #ffb3bb;
+    }
+    button.ghost {
+      background: transparent;
+    }
+    button.icon {
+      padding: 0.4rem 0.55rem;
+      min-width: 2rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.8rem;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.18);
+    }
+
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.25rem;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header.topbar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      background: rgba(18, 24, 33, 0.85);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f8cff, #7c5cff 55%, #2ad4b8);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: white;
+      box-shadow: 0 8px 24px rgba(79, 140, 255, 0.35);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .brand p {
+      margin: 0.1rem 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .status-group {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      border-radius: 999px;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.15); }
+    .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(240, 180, 41, 0.15); }
+    .dot.err { background: var(--danger); box-shadow: 0 0 0 4px rgba(255, 93, 108, 0.15); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1rem;
+      flex: 1;
+      min-height: 0;
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(18, 24, 33, 0.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-header h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .panel-body {
+      padding: 1rem;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      padding: 0.65rem 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.12);
+    }
+    .tab {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 0.7rem 0.9rem;
+      border-radius: 10px 10px 0 0;
+      font-weight: 600;
+    }
+    .tab.active {
+      color: var(--text);
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-bottom-color: var(--bg-panel);
+      margin-bottom: -1px;
+    }
+
+    .stack { display: flex; flex-direction: column; gap: 0.75rem; }
+    .row { display: flex; gap: 0.5rem; align-items: center; }
+    .row > * { min-width: 0; }
+    .grow { flex: 1; }
+
+    .model-card {
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      border-radius: 12px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .model-card.active {
+      border-color: rgba(79, 140, 255, 0.55);
+      box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.25);
+    }
+    .model-name {
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      color: var(--faint);
+      font-size: 0.8rem;
+    }
+    .chip {
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.15rem 0.55rem;
+    }
+    .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem 1rem;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+    @media (max-width: 700px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+    .stat {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.8rem;
+    }
+    .stat .label { color: var(--faint); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat .value { font-size: 1.15rem; font-weight: 700; margin-top: 0.2rem; }
+
+    .chat-layout {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: min(78vh, 900px);
+      min-height: 520px;
+    }
+    .chat-toolbar {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.12);
+    }
+    .chat-messages {
+      overflow: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.01), transparent 120px),
+        var(--bg-elevated);
+    }
+    .msg {
+      max-width: min(780px, 92%);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--border);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--chat-user);
+      border-color: rgba(79, 140, 255, 0.35);
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: var(--chat-assistant);
+    }
+    .msg .role {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+      margin-bottom: 0.35rem;
+      font-weight: 700;
+    }
+    .msg .metrics {
+      margin-top: 0.55rem;
+      font-size: 0.75rem;
+      color: var(--faint);
+      font-family: var(--mono);
+    }
+    .chat-input {
+      border-top: 1px solid var(--border);
+      padding: 0.9rem 1rem 1rem;
+      background: rgba(0,0,0,0.16);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .chat-input textarea {
+      min-height: 88px;
+      resize: vertical;
+      font-family: var(--font);
+    }
+
+    .progress {
+      height: 8px;
+      background: var(--bg);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.2s ease;
+    }
+
+    .toast-host {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 50;
+      max-width: min(360px, calc(100vw - 2rem));
+    }
+    .toast {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.75rem 0.9rem;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      animation: slide-in 0.2s ease;
+    }
+    .toast.error { border-color: rgba(255, 93, 108, 0.5); }
+    .toast.success { border-color: rgba(46, 204, 113, 0.45); }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    details.model-details {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      padding: 0.6rem 0.8rem;
+    }
+    details.model-details summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    pre.code {
+      margin: 0.6rem 0 0;
+      padding: 0.75rem;
+      overflow: auto;
+      background: #0a0e13;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: #c9d5e8;
+      max-height: 280px;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    @media (max-width: 700px) {
+      .settings-grid { grid-template-columns: 1fr; }
+    }
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">Ol</div>
+        <div>
+          <h1>Ollama Dashboard</h1>
+          <p>Manage models and chat with your local Ollama server</p>
+        </div>
+      </div>
+      <div class="status-group">
+        <div class="pill" id="connectionPill" title="Ollama connection status">
+          <span class="dot" id="connectionDot"></span>
+          <span id="connectionText">Checking…</span>
+        </div>
+        <div class="pill" id="versionPill">version —</div>
+        <button class="ghost" id="refreshAllBtn" title="Refresh">Refresh</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-side-tab="models">Models</button>
+          <button class="tab" data-side-tab="running">Running</button>
+          <button class="tab" data-side-tab="pull">Pull</button>
+        </div>
+
+        <section class="panel-body stack" id="sideModels">
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Models</div>
+              <div class="value" id="statModels">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Disk</div>
+              <div class="value" id="statDisk">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Loaded</div>
+              <div class="value" id="statLoaded">—</div>
+            </div>
+          </div>
+          <div class="row">
+            <input id="modelFilter" class="grow" type="search" placeholder="Filter models…" />
+            <button id="reloadModelsBtn" class="icon" title="Reload models">↻</button>
+          </div>
+          <div class="stack" id="modelList"></div>
+        </section>
+
+        <section class="panel-body stack hidden" id="sideRunning">
+          <div class="row">
+            <div class="grow" style="color:var(--muted);font-size:0.9rem;">Currently loaded in memory</div>
+            <button id="reloadRunningBtn" class="icon" title="Reload">↻</button>
+          </div>
+          <div class="stack" id="runningList"></div>
+        </section>
+
+        <section class="panel-body stack hidden" id="sidePull">
+          <label class="field">
+            Model name
+            <input id="pullName" placeholder="e.g. llama3.2, mistral, qwen2.5:7b" />
+          </label>
+          <button class="primary" id="pullBtn">Pull model</button>
+          <div class="stack hidden" id="pullProgressWrap">
+            <div class="row">
+              <div class="grow" id="pullStatus" style="color:var(--muted);font-size:0.9rem;">Starting…</div>
+              <button class="ghost" id="cancelPullBtn">Cancel</button>
+            </div>
+            <div class="progress"><span id="pullBar"></span></div>
+          </div>
+          <div class="empty" style="text-align:left;">
+            Tip: browse tags at
+            <a href="https://ollama.com/library" target="_blank" rel="noopener" style="color:var(--accent);">ollama.com/library</a>
+          </div>
+        </section>
+      </aside>
+
+      <main class="panel chat-layout">
+        <div class="chat-toolbar">
+          <label class="field grow" style="min-width:180px;">
+            Model
+            <select id="chatModel"></select>
+          </label>
+          <label class="field" style="width:110px;">
+            Temp
+            <input id="chatTemp" type="number" min="0" max="2" step="0.1" value="0.7" />
+          </label>
+          <label class="field" style="width:120px;">
+            Max tokens
+            <input id="chatMaxTokens" type="number" min="16" max="8192" step="16" value="512" />
+          </label>
+          <button id="clearChatBtn" class="ghost">Clear</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="empty" id="chatEmpty">
+            Select a model and start chatting. Messages stream from Ollama in real time.
+          </div>
+        </div>
+
+        <div class="chat-input">
+          <textarea id="chatInput" placeholder="Message Ollama… (Enter to send, Shift+Enter for newline)"></textarea>
+          <div class="row">
+            <div class="grow" style="color:var(--faint);font-size:0.8rem;" id="chatHint">Ready</div>
+            <button id="stopBtn" class="ghost hidden">Stop</button>
+            <button id="sendBtn" class="primary">Send</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Settings &amp; details</h2>
+      </div>
+      <div class="panel-body stack">
+        <div class="settings-grid">
+          <label class="field">
+            Ollama base URL (via local proxy)
+            <input id="ollamaBase" value="/api" readonly title="Proxied by server.py to your Ollama host" />
+          </label>
+          <label class="field">
+            System prompt
+            <input id="systemPrompt" placeholder="Optional system instructions for chat" />
+          </label>
+        </div>
+        <details class="model-details" id="detailsBox">
+          <summary>Selected model details</summary>
+          <pre class="code" id="modelDetails">Select a model to inspect architecture, parameters, and template.</pre>
+        </details>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-host" id="toasts"></div>
+
+  <script>
+    const state = {
+      models: [],
+      running: [],
+      selectedModel: localStorage.getItem("od.selectedModel") || "",
+      messages: [],
+      streaming: false,
+      abortController: null,
+      pullController: null,
+      version: null,
+      online: false,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function toast(message, type = "info") {
+      const el = document.createElement("div");
+      el.className = `toast ${type === "error" ? "error" : type === "success" ? "success" : ""}`;
+      el.textContent = message;
+      $("toasts").appendChild(el);
+      setTimeout(() => el.remove(), 4200);
+    }
+
+    function formatBytes(n) {
+      if (n == null || isNaN(n)) return "—";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let v = Number(n);
+      let i = 0;
+      while (v >= 1024 && i < units.length - 1) {
+        v /= 1024;
+        i += 1;
+      }
+      return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      return d.toLocaleString();
+    }
+
+    async function api(path, options = {}) {
+      const opts = {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+      };
+      const res = await fetch(path, opts);
+      const ct = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let detail = res.statusText;
+        try {
+          if (ct.includes("application/json")) {
+            const data = await res.json();
+            detail = data.error || data.message || JSON.stringify(data);
+          } else {
+            detail = await res.text();
+          }
+        } catch (_) {}
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
+      if (options.raw) return res;
+      if (ct.includes("application/json")) return res.json();
+      return res.text();
+    }
+
+    function setConnection(online, detail) {
+      state.online = online;
+      const dot = $("connectionDot");
+      const text = $("connectionText");
+      dot.className = "dot " + (online ? "ok" : "err");
+      text.textContent = online ? (detail || "Connected") : (detail || "Offline");
+    }
+
+    async function refreshVersion() {
+      try {
+        const data = await api("/api/version");
+        state.version = data.version || data;
+        $("versionPill").textContent = `v${state.version}`;
+        setConnection(true, "Connected");
+      } catch (err) {
+        state.version = null;
+        $("versionPill").textContent = "version —";
+        setConnection(false, "Ollama unreachable");
+        throw err;
+      }
+    }
+
+    async function refreshModels() {
+      const data = await api("/api/tags");
+      state.models = Array.isArray(data.models) ? data.models : [];
+      state.models.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      renderModels();
+      populateModelSelect();
+      updateStats();
+    }
+
+    async function refreshRunning() {
+      try {
+        const data = await api("/api/ps");
+        state.running = Array.isArray(data.models) ? data.models : [];
+      } catch (_) {
+        state.running = [];
+      }
+      renderRunning();
+      updateStats();
+    }
+
+    function updateStats() {
+      $("statModels").textContent = String(state.models.length);
+      const disk = state.models.reduce((sum, m) => sum + (m.size || 0), 0);
+      $("statDisk").textContent = formatBytes(disk);
+      $("statLoaded").textContent = String(state.running.length);
+    }
+
+    function renderModels() {
+      const filter = ($("modelFilter").value || "").trim().toLowerCase();
+      const host = $("modelList");
+      host.innerHTML = "";
+      const items = state.models.filter((m) => !filter || String(m.name).toLowerCase().includes(filter));
+      if (!items.length) {
+        host.innerHTML = `<div class="empty">${state.models.length ? "No models match filter." : "No local models yet. Pull one to get started."}</div>`;
+        return;
+      }
+      for (const model of items) {
+        const card = document.createElement("div");
+        card.className = "model-card" + (model.name === state.selectedModel ? " active" : "");
+        card.innerHTML = `
+          <div class="model-name">${escapeHtml(model.name)}</div>
+          <div class="meta">
+            <span class="chip">${formatBytes(model.size)}</span>
+            <span class="chip">${escapeHtml(model.details?.parameter_size || model.details?.family || "model")}</span>
+            <span class="chip">${escapeHtml(model.details?.quantization_level || "—")}</span>
+            <span class="chip">mod ${escapeHtml(formatDate(model.modified_at))}</span>
+          </div>
+          <div class="actions">
+            <button data-act="select" class="primary">Chat</button>
+            <button data-act="details" class="ghost">Details</button>
+            <button data-act="delete" class="danger">Delete</button>
+          </div>
+        `;
+        card.querySelector('[data-act="select"]').onclick = () => selectModel(model.name);
+        card.querySelector('[data-act="details"]').onclick = () => showModelDetails(model.name);
+        card.querySelector('[data-act="delete"]').onclick = () => deleteModel(model.name);
+        host.appendChild(card);
+      }
+    }
+
+    function renderRunning() {
+      const host = $("runningList");
+      host.innerHTML = "";
+      if (!state.running.length) {
+        host.innerHTML = `<div class="empty">No models currently loaded.</div>`;
+        return;
+      }
+      for (const model of state.running) {
+        const card = document.createElement("div");
+        card.className = "model-card";
+        const size = model.size_vram || model.size || 0;
+        card.innerHTML = `
+          <div class="model-name">${escapeHtml(model.name || model.model)}</div>
+          <div class="meta">
+            <span class="chip">VRAM ${formatBytes(size)}</span>
+            <span class="chip">expires ${escapeHtml(formatDate(model.expires_at))}</span>
+            <span class="chip">${escapeHtml(model.details?.parameter_size || "")}</span>
+          </div>
+          <div class="actions">
+            <button data-act="select" class="primary">Chat</button>
+          </div>
+        `;
+        card.querySelector('[data-act="select"]').onclick = () => selectModel(model.name || model.model);
+        host.appendChild(card);
+      }
+    }
+
+    function populateModelSelect() {
+      const sel = $("chatModel");
+      const previous = state.selectedModel || sel.value;
+      sel.innerHTML = "";
+      if (!state.models.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No models available";
+        sel.appendChild(opt);
+        return;
+      }
+      for (const m of state.models) {
+        const opt = document.createElement("option");
+        opt.value = m.name;
+        opt.textContent = m.name;
+        sel.appendChild(opt);
+      }
+      if (previous && state.models.some((m) => m.name === previous)) {
+        sel.value = previous;
+        state.selectedModel = previous;
+      } else {
+        sel.value = state.models[0].name;
+        state.selectedModel = sel.value;
+      }
+      localStorage.setItem("od.selectedModel", state.selectedModel);
+    }
+
+    function selectModel(name) {
+      state.selectedModel = name;
+      localStorage.setItem("od.selectedModel", name);
+      $("chatModel").value = name;
+      renderModels();
+      showModelDetails(name).catch(() => {});
+      toast(`Selected ${name}`, "success");
+    }
+
+    async function showModelDetails(name) {
+      $("modelDetails").textContent = "Loading…";
+      try {
+        const data = await api("/api/show", {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        });
+        const summary = {
+          name,
+          modelfile: data.modelfile,
+          parameters: data.parameters,
+          template: data.template,
+          details: data.details,
+          model_info: data.model_info,
+        };
+        $("modelDetails").textContent = JSON.stringify(summary, null, 2);
+        $("detailsBox").open = true;
+      } catch (err) {
+        $("modelDetails").textContent = String(err.message || err);
+        toast(String(err.message || err), "error");
+      }
+    }
+
+    async function deleteModel(name) {
+      if (!confirm(`Delete model "${name}" from local disk?`)) return;
+      try {
+        await api("/api/delete", {
+          method: "DELETE",
+          body: JSON.stringify({ name }),
+        });
+        toast(`Deleted ${name}`, "success");
+        if (state.selectedModel === name) {
+          state.selectedModel = "";
+          localStorage.removeItem("od.selectedModel");
+        }
+        await refreshModels();
+        await refreshRunning();
+      } catch (err) {
+        toast(String(err.message || err), "error");
+      }
+    }
+
+    async function pullModel() {
+      const name = ($("pullName").value || "").trim();
+      if (!name) {
+        toast("Enter a model name to pull", "error");
+        return;
+      }
+      if (state.pullController) {
+        toast("A pull is already in progress", "error");
+        return;
+      }
+
+      $("pullProgressWrap").classList.remove("hidden");
+      $("pullBar").style.width = "0%";
+      $("pullStatus").textContent = `Pulling ${name}…`;
+      $("pullBtn").disabled = true;
+      state.pullController = new AbortController();
+
+      try {
+        const res = await fetch("/api/pull", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, stream: true }),
+          signal: state.pullController.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || res.statusText);
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let evt;
+            try { evt = JSON.parse(line); } catch { continue; }
+            if (evt.error) throw new Error(evt.error);
+            const status = evt.status || "working";
+            let pct = null;
+            if (evt.total && evt.completed != null) {
+              pct = Math.min(100, Math.round((evt.completed / evt.total) * 100));
+              $("pullBar").style.width = pct + "%";
+            }
+            $("pullStatus").textContent = pct != null ? `${status} (${pct}%)` : status;
+            if (status === "success") {
+              $("pullBar").style.width = "100%";
+            }
+          }
+        }
+        toast(`Pulled ${name}`, "success");
+        $("pullName").value = "";
+        await refreshModels();
+        selectModel(findPulledName(name));
+      } catch (err) {
+        if (err.name === "AbortError") {
+          toast("Pull cancelled", "info");
+          $("pullStatus").textContent = "Cancelled";
+        } else {
+          toast(String(err.message || err), "error");
+          $("pullStatus").textContent = String(err.message || err);
+        }
+      } finally {
+        state.pullController = null;
+        $("pullBtn").disabled = false;
+      }
+    }
+
+    function findPulledName(requested) {
+      const exact = state.models.find((m) => m.name === requested);
+      if (exact) return exact.name;
+      const prefixed = state.models.find((m) => m.name === requested || m.name.startsWith(requested + ":"));
+      return prefixed ? prefixed.name : requested;
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderChat() {
+      const host = $("chatMessages");
+      host.innerHTML = "";
+      if (!state.messages.length) {
+        host.innerHTML = `<div class="empty" id="chatEmpty">Select a model and start chatting. Messages stream from Ollama in real time.</div>`;
+        return;
+      }
+      for (const msg of state.messages) {
+        const el = document.createElement("div");
+        el.className = `msg ${msg.role}`;
+        el.innerHTML = `<div class="role">${escapeHtml(msg.role)}</div><div class="content"></div>`;
+        el.querySelector(".content").textContent = msg.content || "";
+        if (msg.metrics) {
+          const m = document.createElement("div");
+          m.className = "metrics";
+          m.textContent = msg.metrics;
+          el.appendChild(m);
+        }
+        host.appendChild(el);
+      }
+      host.scrollTop = host.scrollHeight;
+    }
+
+    function appendAssistantPlaceholder() {
+      state.messages.push({ role: "assistant", content: "" });
+      renderChat();
+      return state.messages.length - 1;
+    }
+
+    function updateAssistant(index, content, metrics) {
+      state.messages[index].content = content;
+      if (metrics) state.messages[index].metrics = metrics;
+      renderChat();
+    }
+
+    function formatMetrics(evt) {
+      const parts = [];
+      if (evt.eval_count != null && evt.eval_duration) {
+        const tps = evt.eval_count / (evt.eval_duration / 1e9);
+        parts.push(`${tps.toFixed(1)} tok/s`);
+      }
+      if (evt.prompt_eval_count != null) parts.push(`prompt ${evt.prompt_eval_count}`);
+      if (evt.eval_count != null) parts.push(`out ${evt.eval_count}`);
+      if (evt.total_duration) parts.push(`total ${(evt.total_duration / 1e9).toFixed(2)}s`);
+      return parts.join(" · ");
+    }
+
+    async function sendChat() {
+      if (state.streaming) return;
+      const model = $("chatModel").value || state.selectedModel;
+      const text = ($("chatInput").value || "").trim();
+      if (!model) {
+        toast("No model selected", "error");
+        return;
+      }
+      if (!text) return;
+
+      const system = ($("systemPrompt").value || "").trim();
+      state.messages.push({ role: "user", content: text });
+      $("chatInput").value = "";
+      renderChat();
+
+      const history = [];
+      if (system) history.push({ role: "system", content: system });
+      for (const m of state.messages) {
+        if (m.role === "user" || m.role === "assistant") {
+          history.push({ role: m.role, content: m.content });
+        }
+      }
+      // Drop the empty assistant we are about to stream into from history payload
+      // (it is not yet appended)
+
+      const assistantIndex = appendAssistantPlaceholder();
+      state.streaming = true;
+      state.abortController = new AbortController();
+      $("sendBtn").disabled = true;
+      $("stopBtn").classList.remove("hidden");
+      $("chatHint").textContent = "Streaming…";
+
+      const temperature = Number($("chatTemp").value || 0.7);
+      const numPredict = Number($("chatMaxTokens").value || 512);
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: state.abortController.signal,
+          body: JSON.stringify({
+            model,
+            messages: history,
+            stream: true,
+            options: {
+              temperature,
+              num_predict: numPredict,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || res.statusText);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let content = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let evt;
+            try { evt = JSON.parse(line); } catch { continue; }
+            if (evt.error) throw new Error(evt.error);
+            const piece = evt.message?.content || "";
+            if (piece) {
+              content += piece;
+              updateAssistant(assistantIndex, content);
+            }
+            if (evt.done) {
+              updateAssistant(assistantIndex, content, formatMetrics(evt));
+            }
+          }
+        }
+        $("chatHint").textContent = "Ready";
+      } catch (err) {
+        if (err.name === "AbortError") {
+          $("chatHint").textContent = "Stopped";
+          if (!state.messages[assistantIndex].content) {
+            state.messages[assistantIndex].content = "(stopped)";
+            renderChat();
+          }
+        } else {
+          toast(String(err.message || err), "error");
+          $("chatHint").textContent = "Error";
+          if (!state.messages[assistantIndex].content) {
+            state.messages[assistantIndex].content = `Error: ${err.message || err}`;
+            renderChat();
+          }
+        }
+      } finally {
+        state.streaming = false;
+        state.abortController = null;
+        $("sendBtn").disabled = false;
+        $("stopBtn").classList.add("hidden");
+        await refreshRunning().catch(() => {});
+      }
+    }
+
+    function stopChat() {
+      if (state.abortController) state.abortController.abort();
+    }
+
+    function clearChat() {
+      if (state.streaming) stopChat();
+      state.messages = [];
+      renderChat();
+      $("chatHint").textContent = "Ready";
+    }
+
+    function setupTabs() {
+      document.querySelectorAll("[data-side-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-side-tab]").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          const tab = btn.getAttribute("data-side-tab");
+          $("sideModels").classList.toggle("hidden", tab !== "models");
+          $("sideRunning").classList.toggle("hidden", tab !== "running");
+          $("sidePull").classList.toggle("hidden", tab !== "pull");
+        });
+      });
+    }
+
+    async function refreshAll() {
+      try {
+        await refreshVersion();
+        await Promise.all([refreshModels(), refreshRunning()]);
+      } catch (err) {
+        toast(String(err.message || err), "error");
+        renderModels();
+        renderRunning();
+        updateStats();
+      }
+    }
+
+    function bindEvents() {
+      $("refreshAllBtn").onclick = refreshAll;
+      $("reloadModelsBtn").onclick = () => refreshModels().catch((e) => toast(String(e.message || e), "error"));
+      $("reloadRunningBtn").onclick = () => refreshRunning().catch((e) => toast(String(e.message || e), "error"));
+      $("modelFilter").oninput = renderModels;
+      $("chatModel").onchange = (e) => {
+        state.selectedModel = e.target.value;
+        localStorage.setItem("od.selectedModel", state.selectedModel);
+        renderModels();
+        showModelDetails(state.selectedModel).catch(() => {});
+      };
+      $("sendBtn").onclick = sendChat;
+      $("stopBtn").onclick = stopChat;
+      $("clearChatBtn").onclick = clearChat;
+      $("pullBtn").onclick = pullModel;
+      $("cancelPullBtn").onclick = () => {
+        if (state.pullController) state.pullController.abort();
+      };
+      $("chatInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendChat();
+        }
+      });
+    }
+
+    setupTabs();
+    bindEvents();
+    refreshAll();
+    setInterval(() => {
+      if (!state.streaming) {
+        refreshRunning().catch(() => {});
+      }
+    }, 15000);
+  </script>
+</body>
+</html>
