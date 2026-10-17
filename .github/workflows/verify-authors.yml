@@ -11,8 +11,8 @@
 # fact. This check enforces that every commit in a human-authored
 # onboarding or catalog PR has a clear NVIDIA author chain.
 #
-# The automated/sync-skills branch is exempt — same reason as DCO:
-# it's the bot mirror, not a contributor.
+# The automated/sync-skills and copilot/* branches are exempt — same
+# reason as DCO: they're bot-managed, not human contributors.
 #
 # Reviewed external contributions are accepted via
 # .github/external-contributors.yml: a maintainer runs the contribution
@@ -51,11 +51,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Bot-managed sync branch is exempt — see header comment.
-          if [ "$HEAD_REF" = "automated/sync-skills" ]; then
-            echo "Author verification exempt for bot-managed branch '$HEAD_REF'."
-            exit 0
-          fi
+          # Bot-managed branches are exempt — see header comment.
+          case "$HEAD_REF" in
+            automated/sync-skills|copilot/*)
+              echo "Author verification exempt for bot-managed branch '$HEAD_REF'."
+              exit 0
+              ;;
+          esac
 
           # Allowed email patterns:
           #   *@nvidia.com                  — corporate accounts
