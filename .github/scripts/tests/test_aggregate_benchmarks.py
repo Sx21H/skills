@@ -131,6 +131,40 @@ class TestNullRateRegressionGuard(unittest.TestCase):
                           {"skill": "b", "environment": None}]}
         self.assertEqual(agg.null_rate_regressions(old, new), {})
 
+    def test_exclude_drops_orphan_dirs(self):
+        old = {"skills": [{"skill": "x", "catalog_dir": "old-dir", "component": "c"},
+                          {"skill": "x", "catalog_dir": "new-dir", "component": "c"}]}
+        new = {"skills": [{"skill": "x", "catalog_dir": "old-dir", "component": None},
+                          {"skill": "x", "catalog_dir": "new-dir", "component": "c"}]}
+        self.assertIn("component", agg.null_rate_regressions(old, new))
+        self.assertEqual(
+            agg.null_rate_regressions(old, new, exclude={"old-dir"}), {})
+
+
+class TestUpliftHelpers(unittest.TestCase):
+    def test_parse_uplift_plus_minus_zero_is_zero_not_none(self):
+        self.assertEqual(agg.parse_uplift("±0"), 0.0)
+        self.assertIsNotNone(agg.parse_uplift("±0"))
+
+    def test_parse_uplift_none_passthrough(self):
+        self.assertIsNone(agg.parse_uplift(None))
+
+    def test_average_uplift_counts_zero_but_skips_none(self):
+        results = [{"agents": {"a": {"uplift_pct": 0.0},
+                               "b": {"uplift_pct": 10.0},
+                               "c": {"uplift_pct": None}}}]
+        self.assertEqual(agg.average_uplift(results), 5.0)
+
+    def test_average_uplift_all_none_is_none(self):
+        self.assertIsNone(
+            agg.average_uplift([{"agents": {"a": {"uplift_pct": None}}}]))
+
+    def test_normalize_agent_variants(self):
+        self.assertEqual(agg.normalize_agent("claude-code"), "claude-code")
+        self.assertEqual(
+            agg.normalize_agent("Claude Code (`anthropic/model-id`)"),
+            "claude-code")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
