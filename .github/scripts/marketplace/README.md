@@ -113,8 +113,9 @@ the generator log, the workflow-run link, and `@jim-NVIDIA` /
 | Variable | `INFERENCE_MODEL` | Model slug passed to the inference API. The generator fails fast if this is unset and AI is needed. |
 | Variable | `INFERENCE_API_URL` | (Optional) Override the inference endpoint. Defaults to `https://inference-api.nvidia.com/v1/chat/completions`. |
 
-Locally the same names are read from `.env` (see `.env.example` if added) or
-from the shell environment. `.env` is gitignored.
+Locally, export these variables in the shell environment before running the
+generator. It reads environment variables directly and does not load `.env`
+files automatically; `.env` is gitignored.
 
 ## How AI enrichment is constrained
 
